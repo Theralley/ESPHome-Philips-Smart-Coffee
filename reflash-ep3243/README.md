@@ -1,22 +1,35 @@
 # Reflashing a Philips EP3243 (Series 3200 LatteGo) from a Mac
 
-Status, 2026-11-17: the research is done and nothing has been flashed yet. The scripts in
-[`openocd/`](openocd/) have not been run on real hardware.
-
 This folder belongs to a fork of
 [ESPHome-Philips-Smart-Coffee](https://github.com/TillFleisch/ESPHome-Philips-Smart-Coffee).
 It is a separate project inside that fork. The ESPHome component itself is unchanged.
+
+## Status
+
+| Step | State |
+|---|---|
+| Research: chips, programming route, Mac tools | Done (2026-11-17) |
+| OpenOCD configs and a read-only dump script | Written; OpenOCD 0.12.0 parses them; not yet run on hardware |
+| Overview photos of the power board | Taken (kept locally) |
+| Close-ups: board labels, chip markings, SWD header | To do |
+| Raspberry Pi Pico W flashed with `debugprobe` and checked on the Mac | To do |
+| Forum account, download the matching firmware | To do |
+| Read-only dumps of both boards, compare versions | To do |
+| Flash a matching MAIN and UI pair | To do |
+| Machine stops ghosting | To do |
 
 ## Ground rules
 
 1. **Normal components only.** No Philips Serkit SSC2 programmer and no Philips service cable.
 2. **Everything runs on a Mac.**
-3. **No registration.** No Philips EPSC account and no forum account.
+3. **No licence or vendor accounts.** No Philips EPSC service-centre key, and no accounts for
+   chip-vendor tools such as Infineon ModusToolbox or ST's STM32CubeProgrammer. **A forum
+   account is fine** (changed 2026-11-17), so the firmware files on saeco-support-forum.de can
+   be used.
 
 These rules exclude Philips' official route (EPSC software, Serkit programmer, Windows and a
-service centre key) and the firmware files posted on saeco-support-forum.de, whose attachments
-can only be downloaded after logging in. The reasoning is in [DECISIONS.md](DECISIONS.md), and
-every source is listed in [SOURCES.md](SOURCES.md).
+service centre key). The reasoning is in [DECISIONS.md](DECISIONS.md), and every source is
+listed in [SOURCES.md](SOURCES.md).
 
 ## Why reflash
 
@@ -37,12 +50,16 @@ diagnostic step, before anything is written.**
 - **Pull the mains plug for every step in this guide.** The board logic is not isolated from
   mains. The service manual says the board "is working at 230V" and that mains potential reaches
   all the way to the Philips programmer. Never connect a probe, the Mac or a logic analyser to the
-  board while it is plugged in.
+  board while it is plugged in. With the back panel off, the mains terminals and the triac on its
+  heatsink are exposed.
 - **Power the board from a bench supply while programming:** 3.3 V, current limit 50 mA, on the
   board's `+5V` and `GND` test points. Forum figures: the power board draws under 22 mA and the
-  display under 26 mA at 5 V. Use 3.3 V because both probes below are 3.3 V devices. A J-Link
-  EDU Mini can be damaged by 5 V on its reference input. Both MCUs run at 3.3 V: the KE02 is
-  specified for 2.7 to 5.5 V and the PSoC 4000S for 1.71 to 5.5 V.
+  display under 26 mA at 5 V. Use 3.3 V because the Pico is a 3.3 V device and its pins are
+  not 5 V tolerant. Both MCUs run at 3.3 V: the KE02 is specified for 2.7 to 5.5 V and the
+  PSoC 4000S for 1.71 to 5.5 V.
+- No bench supply: the Pico's `3V3(OUT)` pin can feed the board instead, but first measure
+  between the board's `+5V` and `GND` with the multimeter. The forum's most common power-board
+  fault is a short on that rail, and the Pico has no current limit to protect it.
 - The UI cable is soldered to the mainboard (service manual). To program one board on its own,
   unplug the Picoflex connector at the UI end, gently: two forum users tore off connector pins.
 
@@ -59,33 +76,63 @@ repairer, the power boards of the EP1200, EP2200, EP3200, EP4300 and EP5400 are 
 from the firmware. He has never found read-protected firmware on them. **Read the chip markings
 on your own boards before buying anything.**
 
+## Our power board (photos, 2026-11-17)
+
+Two overview photos of the power board, taken behind the back panel. The photos are kept in
+`local/photos/` and are not published. At this resolution no text can be read. What can be
+seen, and what still needs a close-up:
+
+| Seen | Probably | Close-up needed |
+|---|---|---|
+| Mains terminals (blue, green/yellow, brown) and a glass fuse at the bottom left | Mains input and the 1 A fuse the forum mentions | Check that the fuse is intact |
+| White sticker next to the fuse | The board label with its 12NC | Yes: the **MAIN 12NC** decides which firmware fits |
+| TO-220 part on a heatsink, bottom right | The boiler triac (forum: BTA312) | No |
+| Yellow transformer, top left | The switch-mode supply for the 5 V rail | No |
+| Small square chip with a white sticker, top right | Possibly the MCU with a software sticker | Yes: chip marking and sticker text |
+| 4-pin white connector, top left | Possibly the "white connector" the service manual reserves for the Philips serial programmer | Yes, to tell it apart from the SWD header |
+| Flat white cable leaving the top edge | The UI cable, fixed to the mainboard | No |
+
+Still to find: the **5-pin SWD header** near the MCU. The forum's pinout photos
+(`pinout.jpg`, `disp-swd-pinout.jpg`) can be seen with a forum account.
+
 ## Hardware (all off the shelf)
 
 | Item | Why |
 |---|---|
-| Raspberry Pi Pico or Pico 2 with Raspberry Pi's `debugprobe` firmware | SWD probe (CMSIS-DAP), works with OpenOCD on macOS |
-| *or* SEGGER J-Link EDU Mini | Used by forum members on exactly these boards. Licensed for non-commercial use only |
+| **Raspberry Pi Pico W (RP2040), which we have** | SWD probe (CMSIS-DAP) with Raspberry Pi's `debugprobe` firmware, works with OpenOCD on macOS |
 | Bench power supply with current limit | 3.3 V to the board being programmed |
 | Thin wire and a soldering iron, or a pogo-pin clip | Five wires to the SWD header on each board |
-| Multimeter | Continuity checks to identify the SWD pins |
+| Multimeter | Continuity checks to identify the SWD pins; check the 5 V rail for shorts |
 | Torx T10 | Back panel |
 
-Avoid J-Link clones such as "V9" boards from AliExpress. They run copied SEGGER firmware with
+Alternative probe: a SEGGER J-Link EDU Mini, which forum members have used on exactly these
+boards. Its software needs no account, but its licence covers non-commercial use only. Avoid
+J-Link clones such as "V9" boards from AliExpress. They run copied SEGGER firmware with
 unlicensed keys, and SEGGER's software can disable them during an update.
 
-## Software on the Mac (none of it needs an account)
+## Software on the Mac (no accounts)
 
 ```sh
 brew install open-ocd      # OpenOCD 0.12.0; ships target/ke0x.cfg and target/psoc4.cfg
 brew install srecord       # optional: hex/bin conversion (srec_cat)
 ```
 
-- `debugprobe_on_pico.uf2` (or `debugprobe_on_pico2.uf2`) from
-  [raspberrypi/debugprobe releases](https://github.com/raspberrypi/debugprobe/releases)
-  (v2.3.1 at the time of writing). Hold BOOTSEL, plug the Pico in and copy the file to the drive.
-- Optional, for the J-Link route: the *J-Link Software and Documentation Pack for macOS*
-  (universal installer) from segger.com/downloads/jlink. You only accept the terms of use; no
-  login is needed.
+### Turning the Pico W into a probe
+
+Raspberry Pi publishes no `debugprobe` build for the Pico W (see debugprobe issues
+[#41](https://github.com/raspberrypi/debugprobe/issues/41) and
+[#160](https://github.com/raspberrypi/debugprobe/issues/160)). The plain Pico build should still
+work: SWD uses GP2 and GP3, which are the same on the Pico W. The firmware's LED pin GP25 goes
+to the Pico W's Wi-Fi chip instead of an LED, so **the LED stays dark**. That is expected.
+
+1. Download `debugprobe_on_pico.uf2` from
+   [raspberrypi/debugprobe releases](https://github.com/raspberrypi/debugprobe/releases)
+   (v2.3.1 at the time of writing).
+2. Hold BOOTSEL, plug the Pico W into the Mac, and copy the file to the `RPI-RP2` drive.
+3. Check that the Mac sees a CMSIS-DAP probe:
+   `system_profiler SPUSBDataType | grep -i -B2 -A6 cmsis-dap`
+4. If it does not show up, build debugprobe from source with `-DPICO_BOARD=pico_w`, as the
+   maintainer suggests in #41. If that fails too, a plain Pico costs a few euros.
 
 Pico wiring, from `include/board_pico_config.h` in debugprobe: **GP2 = SWCLK, GP3 = SWDIO,
 GP1 = RESET**, plus GND. Leave the Pico's 3V3 and VSYS unconnected when a bench supply powers
@@ -116,14 +163,13 @@ mainboard.
 
 ### Step 2: open up and identify
 
-1. Unplug the machine and remove the back panel (2 × T10 at the bottom). The mainboard sits
+1. Unplug the machine and remove the back panel (2 × T10 at the bottom). The power board sits
    behind it.
-2. Photograph both boards. Write down the **MAIN** and **UI** 12NC labels (for example
-   `MAIN 421945020851`, `UI 421945020831`), the chip markings and the machine's 12NC and serial
-   number.
-3. Find the 5-pin SWD header on each board. The forum says the pinout is the same on all
-   Saeco/Philips boards, but its pinout photos are behind the login. Identify the pins with the
-   continuity tester instead: GND, +5V, and the MCU's SWD data, SWD clock and reset pins.
+2. Take close-ups (see the table above). Write down the **MAIN** and **UI** 12NC labels (for
+   example `MAIN 421945020851`, `UI 421945020831`), the chip markings and the machine's 12NC and
+   serial number.
+3. Find the 5-pin SWD header on each board, using the forum pinout photos. Confirm each pin with
+   the continuity tester: GND, +5V, and the MCU's SWD data, SWD clock and reset pins.
    - KE02: `SWD_DIO`, `SWD_CLK` and `RESET_b`. Take the pin numbers from the 44-LQFP table in
      the NXP KE02 data sheet ("Signal multiplexing and pin assignments").
    - PSoC 4000S: `SWDIO` = P3.2, `SWDCLK` = P3.3, and `XRES`. This is the usual PSoC 4
@@ -145,8 +191,8 @@ cd reflash-ep3243/openocd
 
 Each run reads the flash three times into `reflash-ep3243/local/dumps/` and compares the
 SHA-256 sums. Three identical reads mean the wiring is good. **If OpenOCD reports the KE02 as
-secured or the PSoC as `PROTECTED`, stop.** Unlocking erases the chip, and under the rules
-there is no replacement image to put back.
+secured or the PSoC as `PROTECTED`, stop.** Unlocking erases the chip. Do it only once a
+matching replacement image is on disk.
 
 With a J-Link EDU Mini instead, the forum procedure in J-Link Commander (`JLinkExe`) is:
 `connect`, choose the device, `S` for SWD, speed `400`, then
@@ -155,7 +201,7 @@ With a J-Link EDU Mini instead, the forum procedure in J-Link Commander (`JLinkE
 ### Step 5: find the versions
 
 ```sh
-strings -n 6 local/dumps/main-*-1.bin | grep -i -E 'v?[0-9]{2}\.[0-9]{2}(\.[0-9]{2})?'
+strings -n 6 ../local/dumps/main-*-1.bin | grep -i -E 'v?[0-9]{2}\.[0-9]{2}(\.[0-9]{2})?'
 ```
 
 Firmware file names on the forum follow the pattern
@@ -164,26 +210,36 @@ Firmware file names on the forum follow the pattern
 mainboard and UI versions with each other. Whether the version strings are actually stored in
 the image is not yet confirmed.
 
-### Step 6: a matching image without registration
+### Step 6: get a matching image
 
-The only sources that keep to the rules:
+In order of preference:
 
-1. **Our own dumps.** Writing them back only helps against corrupted flash, which is rare.
+1. **The forum files** (needs a forum account). Thread 65595 has two firmware attachments:
+   - `421941311901.04_v01.01_EP3246.zip`, which a repairer posted as the firmware for the EP3200
+     series
+   - `control_panel_421941311861.03_v00.00.01_ep2235.zip` for the EP2200 series
+
+   According to the same repairer, `421941311861` revisions `.03` and `.04` are compatible.
+   **Match the 12NC from your own board labels to the file names.** If they differ, ask in the
+   thread before flashing anything.
 2. **A donor board** with the same 12NC (a used spare part, or a board from a broken machine),
    dumped in the same way.
+3. **Our own dumps.** Writing them back only helps against corrupted flash, which is rare.
 
-Never flash an image whose origin you cannot trace.
+Keep the files in `local/firmware/`. They are Philips' firmware and must never be committed to
+this public fork; `.gitignore` blocks `*.hex`, `*.bin` and `*.zip`.
 
 ### Step 7: flash
 
 ```sh
-openocd -f main-ke02.cfg -c "program ../local/firmware/main.bin 0x0 verify reset exit"
-openocd -f ui-psoc4.cfg  -c "program ../local/firmware/ui.bin 0x0 verify reset exit"
+openocd -f main-ke02.cfg -c "program ../local/firmware/main.hex verify reset exit"
+openocd -f ui-psoc4.cfg  -c "program ../local/firmware/ui.hex verify reset exit"
 ```
 
-`verify` reads the flash back and compares it with the file. On the KE02, **never write an
-image that changes the flash configuration field at 0x400 to 0x40F.** It holds the security
-bytes, and a wrong value can lock the chip for good. An unedited dump from a real board is safe.
+For `.bin` files, add the start address: `program <file>.bin 0x0 verify reset exit`. `verify`
+reads the flash back and compares it with the file. On the KE02, **never write an image that
+changes the flash configuration field at 0x400 to 0x40F.** It holds the security bytes, and a
+wrong value can lock the chip for good. An unedited image from a real board is safe.
 
 With J-Link Commander: `loadfile <file.hex>`, then `r`, `g`, `q`. The file path must not
 contain spaces (forum).
@@ -207,8 +263,8 @@ level 1 and 2.
 
 ## Open questions
 
-- The exact SWD header pinout. The forum photos need a login.
-- Whether the EP3243 and EP3246 mainboard images are identical. The forum has an EP3246 main
-  image `421941311901.04 v01.01`.
+- The exact SWD header pinout. Answered by the forum photos once the account exists.
+- Whether the EP3246 main image (`421941311901.04 v01.01`) fits the EP3243. Our board's 12NC
+  label decides it.
 - Where the machine parameters live. `flash read_bank` does not read the KE02's 256-byte
   EEPROM. Steam-Out resets the parameters either way.

@@ -27,13 +27,16 @@ SHA-256 sums identify the exact copies that were read.
 | NXP KE02 sub-family data sheet ([mirror used](https://datasheet.chipsmall.com/MKE02Z32VFM4/587205.pdf); nxp.com returned 404) | MKE02Z64VLD4 = 44-LQFP, 64 KB flash, up to 256 B EEPROM, SWD only. Local copy SHA-256 `1e796e908fa6ba2181aa0aa72d7b4c7d868986bcc08be2ab47813f1ebeb744f2`. The pin table is not in the extracted text; check it in the PDF |
 | [OpenOCD `tcl/target/ke0x.cfg`](https://github.com/openocd-org/openocd/blob/master/tcl/target/ke0x.cfg) and [`src/flash/nor/kinetis_ke.c`](https://github.com/openocd-org/openocd/blob/master/src/flash/nor/kinetis_ke.c) | KE0x support over SWD, including the KE02 sub-family, plus `kinetis_ke mdm check_security` and `mass_erase` |
 | [OpenOCD `tcl/target/psoc4.cfg`](https://github.com/openocd-org/openocd/blob/master/tcl/target/psoc4.cfg) and [`src/flash/nor/psoc4.c`](https://github.com/openocd-org/openocd/blob/master/src/flash/nor/psoc4.c) | PSoC 4 flash driver; reports chip protection as VIRGIN, open, PROTECTED or KILL |
-| [raspberrypi/debugprobe](https://github.com/raspberrypi/debugprobe) | Runs on a Pico or Pico 2. `board_pico_config.h`: SWCLK on GP2, SWDIO on GP3, RESET on GP1. Release v2.3.1 includes `debugprobe_on_pico.uf2` |
+| [raspberrypi/debugprobe](https://github.com/raspberrypi/debugprobe) | Runs on a Pico or Pico 2. `board_pico_config.h`: SWCLK on GP2, SWDIO on GP3, RESET on GP1, LED on GP25. Release v2.3.1 includes `debugprobe_on_pico.uf2` |
+| debugprobe issues [#41](https://github.com/raspberrypi/debugprobe/issues/41) and [#160](https://github.com/raspberrypi/debugprobe/issues/160) | Pico W: no official build and no LED support. A maintainer in #41 suggests `-DPICO_BOARD=pico_w`; #160 says it is untested |
 | [SEGGER J-Link downloads](https://www.segger.com/downloads/jlink/) | J-Link Software and Documentation Pack for macOS (Apple Silicon, Intel and universal); download after accepting the terms of use |
 | Homebrew | `open-ocd` 0.12.0, `srecord` 1.65.0 |
 
 ## Not verified
 
-- The SWD header pinout on these boards (the forum photos need a login).
+- The SWD header pinout on these boards. The forum photos `pinout.jpg` and `disp-swd-pinout.jpg` need a login.
+- The contents of the forum firmware zips (`421941311901.04_v01.01_EP3246.zip` and `control_panel_421941311861.03_v00.00.01_ep2235.zip`). Not downloaded yet.
+- Whether `debugprobe_on_pico.uf2` runs on our Pico W.
 - The exact KE02 and PSoC pin numbers for SWD on these packages.
 - Whether the firmware version string is stored inside the image.
 - A price or a seller for the Serkit SSC2 (not needed under the ground rules).

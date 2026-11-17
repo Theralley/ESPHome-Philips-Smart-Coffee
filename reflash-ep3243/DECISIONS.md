@@ -1,5 +1,19 @@
 # Decisions
 
+## 2026-11-17, later: rule 3 narrowed, Pico W as the probe
+
+- **Rule 3 is now "no licence or vendor accounts".** A forum account is allowed. Not allowed are
+  accounts such as the Philips EPSC service-centre key, Infineon (ModusToolbox) or ST
+  (STM32CubeProgrammer). As a result, the forum firmware files in thread 65595 become the
+  preferred source of a matching image. Our own dumps are still taken first, as a backup.
+- **Probe: the Raspberry Pi Pico W (RP2040) we already have**, flashed with the plain Pico build
+  of `debugprobe`. There is no official Pico W build, and the LED stays dark. Fallbacks: build
+  with `-DPICO_BOARD=pico_w`, or buy a plain Pico.
+- **The fork's top-level README now opens with what this fork does and how far it has got**, so
+  that visitors see it before the upstream text.
+- Overview photos of the power board were taken. They are kept in `local/photos/`, unpublished,
+  until it is decided whether to publish them (EXIF data checked first).
+
 ## 2026-11-17
 
 **Machine:** Philips Series 3200 LatteGo, EP3243 (probably /50).
@@ -19,7 +33,7 @@ replacing the UI board did not help. The owner chose to reflash.
 |---|---|
 | Philips EPSC with Serkit SSC2 `996530009845` and cable `421946047151` | Breaks all three rules: Philips-only hardware, Windows only (Vista to 10, .NET), and a registration that issues a Service Center Key. It is otherwise the cleanest route, because EPSC picks the right MAIN and UI images from the serial number |
 | A plain USB-UART adapter on the mainboard's white programming connector with the machine on mains | The board logic is at mains potential. Nothing is ever connected to the board while it is plugged in |
-| Firmware attachments on saeco-support-forum.de | Rule 3. The attachments return HTTP 403 without a login |
+| Firmware attachments on saeco-support-forum.de | Rule 3. The attachments return HTTP 403 without a login. *Reversed later the same day: a forum account is allowed (see above).* |
 | J-Link clones ("V9" and similar) | They run copied SEGGER firmware with unlicensed keys, and SEGGER's software can disable them |
 | A wired logic analyser on the running machine | Its ground would be at mains potential. A listen-only ESP on Wi-Fi is used instead |
 

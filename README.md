@@ -1,6 +1,32 @@
 # ESPHome Smart Coffee (Philips Series 2200/3200) [![CI](https://github.com/TillFleisch/ESPHome-Philips-Smart-Coffee/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/TillFleisch/ESPHome-Philips-Smart-Coffee/actions/workflows/ci.yaml)
 
-> **Fork note:** this fork adds [`reflash-ep3243/`](reflash-ep3243/): research and a plan for reading and reflashing the mainboard and UI firmware of an EP3243 over SWD with off-the-shelf parts on a Mac. It does not change the ESPHome component.
+## About this fork: reflashing a "ghosting" EP3243
+
+Our Philips EP3243 (Series 3200 LatteGo) acts on its own. Cleaning, reseating the ribbon cable and
+replacing the UI board did not help, so this fork works out how to **read and reflash the
+firmware of both boards ourselves**. The power board carries an NXP Kinetis KE02 and the UI board
+a Cypress PSoC 4000S, and both have SWD.
+
+**How:** a Raspberry Pi Pico W running Raspberry Pi's `debugprobe` firmware as the SWD probe,
+OpenOCD on a Mac, and a 3.3 V bench supply. The machine's mains plug stays out the whole time.
+
+**Rules we keep:** off-the-shelf parts only, everything on a Mac, and no licence or vendor
+accounts. So no Philips Serkit programmer and no Philips EPSC service software. A forum account
+is fine.
+
+**Status (2026-11-17):** research done, scripts written but not yet run on hardware. Next:
+close-up photos of the boards, set up the Pico W, then read-only dumps of both boards.
+
+Everything is in [`reflash-ep3243/`](reflash-ep3243/): the [guide and status](reflash-ep3243/README.md),
+[decisions](reflash-ep3243/DECISIONS.md), [sources](reflash-ep3243/SOURCES.md) and
+[OpenOCD scripts](reflash-ep3243/openocd/). The ESPHome component below is unchanged from upstream.
+
+> ⚠️ The boards in these machines are not isolated from mains. Never connect anything to them while
+> the machine is plugged in. Philips firmware and service documents are not published in this repo.
+
+---
+
+*Upstream README follows.*
 
 This project integrates a Philips Series 2200/3200 Coffee Machine into into [Home Assistant](https://home-assistant.io) through [ESPHome](https://esphome.io).
 This component has been developed on a Philips `EP2220` and an ESP8266 but it will happily run on an ESP32.
