@@ -1,5 +1,23 @@
 # Decisions
 
+## 2026-11-17, late: replace all software first, an older version is fine
+
+- **The owner accepts a lower firmware version.** The fault survives every part swap, so only
+  the power board or its software is left. **Strategy: replace all software on both boards
+  before replacing the power board.** This supersedes the evening decision not to flash the
+  forum files to the power board.
+- MAIN and UI are flashed as a **matched pair from the same set**. Before anything is written,
+  both boards are dumped, along with the KE02 EEPROM. Those dumps are the way back.
+- `tools/fw_info.py` inspects every image before it is flashed: address ranges, vector table,
+  KE02 security byte, a comparison with our dump, and a clean `.bin` for the flash range. It was
+  tested on synthetic images only.
+- Corrected after reading the KE02 reference manual (table 18-6, section 8.2): the security byte
+  is `0x40E`. A secured KE02 can always be mass-erased over SWD, so it is **not** locked for good.
+  The README said otherwise before.
+- If the fault survives fresh software, the power board is replaced.
+- `local/STATE.md` (gitignored) keeps the private working state: inventory, checksums and the
+  next steps.
+
 ## 2026-11-17, evening: what the power board close-ups changed
 
 - **The power board's firmware is `V01.05.02`** (label `421945017971`), which is newer than both

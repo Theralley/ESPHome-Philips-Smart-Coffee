@@ -34,3 +34,15 @@ else
   echo "MISMATCH: the reads differ. Check the wiring, the supply and the adapter speed." >&2
   exit 1
 fi
+
+# KE02 only: also save the 256-byte EEPROM (machine parameters), mapped at
+# 0x10000000 (KE02 reference manual, table 4-1). For reference only: OpenOCD
+# cannot write it back, and Steam-Out resets the parameters anyway.
+if [ "$board" = main ]; then
+  if openocd -f "$cfg" -c init -c "reset halt" \
+       -c "dump_image $out/main-eeprom-$stamp.bin 0x10000000 256" -c shutdown; then
+    shasum -a 256 "$out/main-eeprom-$stamp.bin"
+  else
+    echo "WARNING: EEPROM read failed. The flash dumps above are still valid." >&2
+  fi
+fi

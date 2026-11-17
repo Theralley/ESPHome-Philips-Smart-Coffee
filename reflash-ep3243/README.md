@@ -14,10 +14,11 @@ It is a separate project inside that fork. The ESPHome component itself is uncha
 | Find the SWD pins on the power board with a continuity tester | To do |
 | Close-ups of the UI board (label, MCU sticker) | To do |
 | Raspberry Pi Pico W flashed with `debugprobe` and checked on the Mac | To do |
-| Forum account, download the matching firmware | To do |
-| Read-only dumps of both boards, compare versions | To do |
-| Flash a matching MAIN and UI pair | To do |
-| Machine stops ghosting | To do |
+| Firmware check tools (`tools/fw_info.py`, `tools/crc_check.py`) | Written; tested on synthetic images |
+| Forum account, download the firmware files | To do |
+| Backup: read-only dumps of both boards plus the power board's EEPROM | To do |
+| Replace all software: flash a matched MAIN and UI pair (an older version is accepted) | To do |
+| Machine stops ghosting? If not, replace the power board | To do |
 
 ## Ground rules
 
@@ -105,7 +106,8 @@ Our reading, not yet verified:
 - `CD2734BF` looks like a 32-bit checksum of the firmware. After the dump,
   [`tools/crc_check.py`](tools/crc_check.py) tries to match it.
 - **Our power board runs newer firmware than the forum files** (`v01.01` for the EP3246 and
-  `v01.00.02` for the EP2235). Flashing those would be a downgrade.
+  `v01.00.02` for the EP2235). Flashing those is a downgrade, **which we accept**: the fault
+  survived every part swap, so the software is replaced before the power board is.
 
 **Parts that matter for the reflash**
 
@@ -238,7 +240,10 @@ cd reflash-ep3243/openocd
 ```
 
 Each run reads the flash three times into `reflash-ep3243/local/dumps/` and compares the
-SHA-256 sums. Three identical reads mean the wiring is good. **If OpenOCD reports the KE02 as
+SHA-256 sums. Three identical reads mean the wiring is good. For the power board it also saves
+the 256-byte EEPROM at `0x10000000` (machine parameters). That copy is for reference only:
+OpenOCD cannot write it back, and Steam-Out resets the parameters anyway. **These dumps are the
+way back if the new software makes things worse.** **If OpenOCD reports the KE02 as
 secured or the PSoC as `PROTECTED`, stop.** Unlocking erases the chip. Do it only once a
 matching replacement image is on disk.
 
@@ -267,46 +272,75 @@ Firmware file names on the forum follow the pattern
 mainboard and UI versions with each other. Whether the version strings are actually stored in
 the image is not yet confirmed.
 
-### Step 6: get a matching image
+### Step 6: choose the new software
 
-In order of preference:
+**Strategy (decided 2026-11-17): replace all software before replacing the power board.** The
+fault survived every part swap, so what is left is the power board itself or its software. An
+older firmware version is acceptable.
 
-1. **The forum files** (needs a forum account). Thread 65595 has two firmware attachments:
+1. **Use a matched pair.** Flash MAIN and UI from the same set and never mix families, because a
+   mismatch is a known cause of odd behaviour. Thread 65595 on the forum (needs an account) has:
    - `421941311901.04_v01.01_EP3246.zip`, which a repairer posted as the firmware for the EP3200
-     series
-   - `control_panel_421941311861.03_v00.00.01_ep2235.zip` for the EP2200 series
+     series. The EP3246 is the EP3243's LatteGo sibling. Check whether it holds both a MAIN and a
+     UI image.
+   - `control_panel_421941311861.03_v00.00.01_ep2235.zip`, a UI image for the EP2200 series
+     (`421941311861` revisions `.03` and `.04` are compatible, according to the same repairer).
+2. **Check the UI image against our UI board's label** (still to be photographed). If the set has
+   no UI image that fits, ask in the thread.
+3. **Inspect every file before it is flashed:**
 
-   According to the same repairer, `421941311861` revisions `.03` and `.04` are compatible.
-   **Match the 12NC from your own board labels to the file names.** If they differ, ask in the
-   thread before flashing anything. **Our power board already runs `V01.05.02`, which is newer
-   than both forum main images, so they are no upgrade for it.** The forum files are mainly
-   relevant for the UI board.
-2. **A donor board** with the same 12NC (a used spare part, or a board from a broken machine),
-   dumped in the same way.
-3. **Our own dumps.** Writing them back only helps against corrupted flash, which is rare.
+   ```sh
+   python3 -I ../tools/fw_info.py --chip ke02  ../local/firmware/<main>.hex --compare ../local/dumps/main-<stamp>-1.bin --out ../local/firmware/main.bin
+   python3 -I ../tools/fw_info.py --chip psoc4 ../local/firmware/<ui>.hex   --compare ../local/dumps/ui-<stamp>-1.bin   --out ../local/firmware/ui.bin
+   ```
+
+   The tool prints the address ranges, a sane vector table, version strings, how much differs
+   from our dump and, for the KE02, the security byte. **It exits with 1 and "DO NOT FLASH"** if
+   the vector table is wrong or the KE02 security byte would lock the debug port. `--out` writes
+   a clean binary covering just the flash range, which is what gets flashed in step 7. PSoC
+   Creator hex files carry extra data above `0x90000000`, and that data is left out.
+4. Other sources, if the forum set does not fit: a **donor board** with the same 12NC, dumped in the
+   same way, or as a last resort **our own dumps** (that only helps against corrupted flash).
 
 Keep the files in `local/firmware/`. They are Philips' firmware and must never be committed to
 this public fork; `.gitignore` blocks `*.hex`, `*.bin` and `*.zip`.
 
-### Step 7: flash
+### Step 7: flash both boards
+
+Flash the binaries that `fw_info.py --out` wrote, one board at a time. Each board is powered on
+its own and the ribbon cable is unplugged.
 
 ```sh
-openocd -f main-ke02.cfg -c "program ../local/firmware/main.hex verify reset exit"
-openocd -f ui-psoc4.cfg  -c "program ../local/firmware/ui.hex verify reset exit"
+openocd -f main-ke02.cfg -c "program ../local/firmware/main.bin 0x0 verify reset exit"
+openocd -f ui-psoc4.cfg  -c "program ../local/firmware/ui.bin 0x0 verify reset exit"
 ```
 
-For `.bin` files, add the start address: `program <file>.bin 0x0 verify reset exit`. `verify`
-reads the flash back and compares it with the file. On the KE02, **never write an image that
-changes the flash configuration field at 0x400 to 0x40F.** It holds the security bytes, and a
-wrong value can lock the chip for good. An unedited image from a real board is safe.
+`verify` reads the flash back and compares it with the file. Afterwards, dump the board again
+with `dump.sh` and compare with `fw_info.py --compare` to make sure it holds the new image.
+
+About the KE02's security byte (`0x40E`, reference manual table 18-6): if it is set to "secured",
+the chip still runs, but the debug port can no longer read or write it. The only way back is a
+mass erase over SWD (`kinetis_ke mdm mass_erase`), which wipes the chip, followed by flashing
+again. `fw_info.py` blocks such images.
+
+**Way back:** flash our own dumps from step 4 in the same way. The EEPROM copy cannot be
+written back; Steam-Out resets the parameters instead.
 
 With J-Link Commander: `loadfile <file.hex>`, then `r`, `g`, `q`. The file path must not
 contain spaces (forum).
 
-### Step 8: back together
+### Step 8: back together and test
 
-Plug the ribbon cable back in and close the machine. Then run Steam-Out (step 0) and test mode
-level 1 and 2.
+Plug the ribbon cable back in and close the machine. Then run Steam-Out (step 0), because older
+firmware may read the EEPROM parameters differently, and test mode level 1 and 2. Use the
+machine as usual and note whether the fault comes back.
+
+### Step 9: if the fault stays
+
+If the fault remains with fresh software on both boards, the power board's hardware is what is
+left. Replace the board. The forum puts a new power board at about 60 euros and says new boards
+come pre-programmed, but check that its version matches the UI board. Our dumps make it possible
+to compare the old and new board's software.
 
 ## Known failure parts (forum reports, not verified)
 

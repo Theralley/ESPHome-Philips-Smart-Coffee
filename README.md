@@ -16,8 +16,10 @@ is fine.
 
 **Status (2026-11-17):** research done, scripts written but not yet run on hardware. The power
 board is identified: `421945017971` with firmware `V01.05.02`, and test points for power and
-UART. Next: find the SWD pins with a continuity tester, photograph the UI board, set up the
-Pico W, then read-only dumps of both boards.
+UART. **Plan: the fault survived every part swap, so we replace all software on both boards,
+even with an older version, before replacing the power board.** Next: find the SWD pins with a
+continuity tester, photograph the UI board, set up the Pico W, back up both boards, then flash a
+matched pair.
 
 Everything is in [`reflash-ep3243/`](reflash-ep3243/): the [guide and status](reflash-ep3243/README.md),
 [decisions](reflash-ep3243/DECISIONS.md), [sources](reflash-ep3243/SOURCES.md) and
