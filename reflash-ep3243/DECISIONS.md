@@ -1,5 +1,16 @@
 # Decisions
 
+## 2026-11-17, evening: what the power board close-ups changed
+
+- **The power board's firmware is `V01.05.02`** (label `421945017971`), which is newer than both
+  forum main images. **Decision: the forum files are not flashed to the power board.** For the
+  power board, our own dump is the reference. The forum files stay relevant for the UI board.
+- The MCU sticker reads `V.01.01.05` and `CD2734BF`. `tools/crc_check.py` was added to test
+  whether `CD2734BF` is a CRC of the dump. It was tested on a synthetic image only.
+- Programming power: TP11 (+5V) and TP14 (GND). SWD candidates: the JP19 pads or the white
+  5-pin header. This is decided by continuity tests to U3 pins 42 (SWD_CLK) and 44 (SWD_DIO).
+- Next: the continuity test, UI board close-ups, and setting up the Pico W.
+
 ## 2026-11-17, later: rule 3 narrowed, Pico W as the probe
 
 - **Rule 3 is now "no licence or vendor accounts".** A forum account is allowed. Not allowed are

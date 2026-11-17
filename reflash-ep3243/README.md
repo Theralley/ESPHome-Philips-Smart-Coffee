@@ -10,8 +10,9 @@ It is a separate project inside that fork. The ESPHome component itself is uncha
 |---|---|
 | Research: chips, programming route, Mac tools | Done (2026-11-17) |
 | OpenOCD configs and a read-only dump script | Written; OpenOCD 0.12.0 parses them; not yet run on hardware |
-| Overview photos of the power board | Taken (kept locally) |
-| Close-ups: board labels, chip markings, SWD header | To do |
+| Photos and close-ups of the power board (labels, MCU, test points) | Done; see [Our boards](#our-boards) |
+| Find the SWD pins on the power board with a continuity tester | To do |
+| Close-ups of the UI board (label, MCU sticker) | To do |
 | Raspberry Pi Pico W flashed with `debugprobe` and checked on the Mac | To do |
 | Forum account, download the matching firmware | To do |
 | Read-only dumps of both boards, compare versions | To do |
@@ -53,15 +54,17 @@ diagnostic step, before anything is written.**
   board while it is plugged in. With the back panel off, the mains terminals and the triac on its
   heatsink are exposed.
 - **Power the board from a bench supply while programming:** 3.3 V, current limit 50 mA, on the
-  board's `+5V` and `GND` test points. Forum figures: the power board draws under 22 mA and the
+  board's `+5V` and `GND` test points. On our power board these are **TP11 (+5V)** and **TP14
+  (GND)**, top left. Forum figures: the power board draws under 22 mA and the
   display under 26 mA at 5 V. Use 3.3 V because the Pico is a 3.3 V device and its pins are
   not 5 V tolerant. Both MCUs run at 3.3 V: the KE02 is specified for 2.7 to 5.5 V and the
   PSoC 4000S for 1.71 to 5.5 V.
 - No bench supply: the Pico's `3V3(OUT)` pin can feed the board instead, but first measure
   between the board's `+5V` and `GND` with the multimeter. The forum's most common power-board
   fault is a short on that rail, and the Pico has no current limit to protect it.
-- The UI cable is soldered to the mainboard (service manual). To program one board on its own,
-  unplug the Picoflex connector at the UI end, gently: two forum users tore off connector pins.
+- To program one board on its own, unplug the 8-wire UI ribbon cable. On our power board it
+  plugs into the red Picoflex socket **JP9**. Pull gently and straight: two forum users tore off
+  connector pins.
 
 ## The chips
 
@@ -76,24 +79,68 @@ repairer, the power boards of the EP1200, EP2200, EP3200, EP4300 and EP5400 are 
 from the firmware. He has never found read-protected firmware on them. **Read the chip markings
 on your own boards before buying anything.**
 
-## Our power board (photos, 2026-11-17)
+## Our boards
 
-Two overview photos of the power board, taken behind the back panel. The photos are kept in
-`local/photos/` and are not published. At this resolution no text can be read. What can be
-seen, and what still needs a close-up:
+### Power board (photos and close-ups, 2026-11-17)
 
-| Seen | Probably | Close-up needed |
+The photos are kept in `local/photos/` and are not published, because they carry GPS
+positions in their metadata.
+
+**Identity**
+
+| What | Read from the board |
+|---|---|
+| PCB | `PHILIPS INNOVATIONS SPA 1.9.30.330.00 V11` |
+| Barcode label on the green X2 capacitor, **crossed out with a marker** | `421945023121/02`, `SY22…093` |
+| White label stuck over it | **`421945017971`** and **`V.01.05.02`** |
+| Sticker on the MCU (U3) | **`V.01.01.05`** and **`CD2734BF`** |
+
+Our reading, not yet verified:
+- `421945023121` is the generic power board. Programming turned it into `421945017971` with
+  software `V01.05.02`, which is why the old barcode is crossed out. The forum says the power
+  boards are identical apart from the firmware, which fits.
+- The MCU sticker shows an older version, `V01.01.05`. The chip was probably pre-programmed with
+  it and updated to `V01.05.02` later, either at the end of the production line or by a service
+  centre.
+- `CD2734BF` looks like a 32-bit checksum of the firmware. After the dump,
+  [`tools/crc_check.py`](tools/crc_check.py) tries to match it.
+- **Our power board runs newer firmware than the forum files** (`v01.01` for the EP3246 and
+  `v01.00.02` for the EP2235). Flashing those would be a downgrade.
+
+**Parts that matter for the reflash**
+
+| Part | Where | Meaning |
 |---|---|---|
-| Mains terminals (blue, green/yellow, brown) and a glass fuse at the bottom left | Mains input and the 1 A fuse the forum mentions | Check that the fuse is intact |
-| White sticker next to the fuse | The board label with its 12NC | Yes: the **MAIN 12NC** decides which firmware fits |
-| TO-220 part on a heatsink, bottom right | The boiler triac (forum: BTA312) | No |
-| Yellow transformer, top left | The switch-mode supply for the 5 V rail | No |
-| Small square chip with a white sticker, top right | Possibly the MCU with a software sticker | Yes: chip marking and sticker text |
-| 4-pin white connector, top left | Possibly the "white connector" the service manual reserves for the Philips serial programmer | Yes, to tell it apart from the SWD header |
-| Flat white cable leaving the top edge | The UI cable, fixed to the mainboard | No |
+| U3, 44-pin QFP under the sticker | Centre | The MCU. The pin count fits the MKE02Z64VLD4 (44-LQFP); OpenOCD reads the chip ID on connect |
+| TP11 `+5V`, TP14 `GND` | Top left | Power for programming (3.3 V from the bench supply) |
+| TP13 `U_TX`, TP12 `U_RX` | Top left, next to TP14 | A UART, probably the line to the UI board (it sits by the UI connector and U2) |
+| **JP19**, 2 × 5 rectangular pads, unpopulated | Below left of U3 | **Candidate SWD port.** The layout matches the ARM 10-pin Cortex debug footprint |
+| White 5-pin header, no cable | Left of R69 and R68 | **Candidate for the "white connector"** that the service manual reserves for the Philips programmer. It may carry SWD or a UART |
+| JP9, red Picoflex socket | Top | The 8-wire UI ribbon cable |
+| U2, small 8-pin IC | Next to JP9 | Fits the forum's NL27WZ17 RX/TX buffer |
+| Q9, SOT-23 | Next to DL3 | Fits the forum's FDN304 P-MOSFET for the sensor supply |
+| Glass fuse `T1A L 250V` | Bottom left | The 1 A slow fuse the forum mentions |
+| Mains terminals N, ⏚, L (JP4, JP3) | Bottom | Mains input. **Plug out!** |
 
-Still to find: the **5-pin SWD header** near the MCU. The forum's pinout photos
-(`pinout.jpg`, `disp-swd-pinout.jpg`) can be seen with a forum account.
+**Finding the SWD pins (machine unplugged, multimeter in continuity mode)**
+
+According to the NXP KE02 data sheet, on the 44-LQFP package **pin 42 = PTC4 = SWD_CLK** and
+**pin 44 = PTA4 = SWD_DIO**. Both sit at the pin 1 corner: pin 1 is marked with a dot, pins are
+numbered anticlockwise, so 44 is next to pin 1. Also find **RESET_b (PTA5)** in the data sheet's
+44-LQFP table.
+
+1. Check which JP19 pads and which pins of the white 5-pin header connect to U3 pins 42 and 44,
+   to RESET_b, to TP11 (+5V) and to TP14 (GND).
+2. If the white header carries all five, a matching 5-pin plug or jumper wires are enough and
+   nothing needs soldering. Otherwise solder five thin wires to JP19.
+3. The forum's pinout photos (`pinout.jpg`, `disp-swd-pinout.jpg`) can be checked against this
+   once the forum account exists.
+
+### UI board
+
+Replaced as part of the fault-finding. Its label (UI 12NC and version) and the sticker on its
+PSoC are still to be photographed. They show whether its firmware matches the power board's
+`V01.05.02`.
 
 ## Hardware (all off the shelf)
 
@@ -168,17 +215,18 @@ mainboard.
 2. Take close-ups (see the table above). Write down the **MAIN** and **UI** 12NC labels (for
    example `MAIN 421945020851`, `UI 421945020831`), the chip markings and the machine's 12NC and
    serial number.
-3. Find the 5-pin SWD header on each board, using the forum pinout photos. Confirm each pin with
-   the continuity tester: GND, +5V, and the MCU's SWD data, SWD clock and reset pins.
-   - KE02: `SWD_DIO`, `SWD_CLK` and `RESET_b`. Take the pin numbers from the 44-LQFP table in
-     the NXP KE02 data sheet ("Signal multiplexing and pin assignments").
+3. Find the SWD pins on each board. For the power board, see
+   [Finding the SWD pins](#our-boards): JP19 or the white 5-pin header. Confirm each pin with the
+   continuity tester: GND, +5V, and the MCU's SWD data, SWD clock and reset pins.
+   - KE02 (44-LQFP): `SWD_CLK` = pin 42 (PTC4), `SWD_DIO` = pin 44 (PTA4). Look up `RESET_b`
+     (PTA5) in the data sheet's 44-LQFP table.
    - PSoC 4000S: `SWDIO` = P3.2, `SWDCLK` = P3.3, and `XRES`. This is the usual PSoC 4
      assignment; confirm it in the CY8C4025 data sheet's pin table.
 
 ### Step 3: wire up
 
-Mains plug out. Unplug the UI end of the ribbon cable. Connect the bench supply (3.3 V, 50 mA)
-to the `+5V` and `GND` test points of the board you are working on. Pico GP2 goes to SWCLK, GP3
+Mains plug out. Unplug the UI ribbon cable from JP9. Connect the bench supply (3.3 V, 50 mA)
+to the `+5V` and `GND` test points of the board you are working on (power board: TP11 and TP14). Pico GP2 goes to SWCLK, GP3
 to SWDIO, GP1 to RESET (XRES on the UI board) and GND to GND.
 
 ### Step 4: dump (read-only, always first)
@@ -204,6 +252,15 @@ With a J-Link EDU Mini instead, the forum procedure in J-Link Commander (`JLinkE
 strings -n 6 ../local/dumps/main-*-1.bin | grep -i -E 'v?[0-9]{2}\.[0-9]{2}(\.[0-9]{2})?'
 ```
 
+Then check the dump against the MCU sticker's checksum:
+
+```sh
+python3 -I ../tools/crc_check.py ../local/dumps/main-<stamp>-1.bin CD2734BF
+```
+
+A match means the chip still holds `V01.01.05`, the version on the MCU sticker. No match proves
+nothing, because the checksum algorithm is a guess.
+
 Firmware file names on the forum follow the pattern
 `main_421941311961_v01.00.02_ep2235.hex` and
 `control_panel_421941311861.03_v00.00.01_ep2235.hex`: board 12NC plus version. Compare the
@@ -221,7 +278,9 @@ In order of preference:
 
    According to the same repairer, `421941311861` revisions `.03` and `.04` are compatible.
    **Match the 12NC from your own board labels to the file names.** If they differ, ask in the
-   thread before flashing anything.
+   thread before flashing anything. **Our power board already runs `V01.05.02`, which is newer
+   than both forum main images, so they are no upgrade for it.** The forum files are mainly
+   relevant for the UI board.
 2. **A donor board** with the same 12NC (a used spare part, or a board from a broken machine),
    dumped in the same way.
 3. **Our own dumps.** Writing them back only helps against corrupted flash, which is rare.
@@ -259,12 +318,13 @@ level 1 and 2.
 - **UI board:** the MCU. On the 1200, 2200 and 3200 series the PSoC runs straight from 5 V with
   no regulator.
 - The service manual's test tables name a "uP U2 in Main", while a forum post calls U2 the
-  NL27WZ17 buffer. The numbering may differ between board revisions.
+  NL27WZ17 buffer. On our V11 board the MCU is U3, and U2 is a small 8-pin IC by the UI
+  connector, which fits the forum's version.
 
 ## Open questions
 
-- The exact SWD header pinout. Answered by the forum photos once the account exists.
-- Whether the EP3246 main image (`421941311901.04 v01.01`) fits the EP3243. Our board's 12NC
-  label decides it.
+- Which of JP19 and the white 5-pin header carries SWD. Answered by the continuity test.
+- What the UI board's label and version say, and whether they match `V01.05.02`.
+- Whether `CD2734BF` is a CRC of the firmware.
 - Where the machine parameters live. `flash read_bank` does not read the KE02's 256-byte
   EEPROM. Steam-Out resets the parameters either way.
