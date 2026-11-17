@@ -1,5 +1,7 @@
 # ESPHome Smart Coffee (Philips Series 2200/3200) [![CI](https://github.com/TillFleisch/ESPHome-Philips-Smart-Coffee/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/TillFleisch/ESPHome-Philips-Smart-Coffee/actions/workflows/ci.yaml)
 
+> **Fork note:** this fork adds [`reflash-ep3243/`](reflash-ep3243/): research and a plan for reading and reflashing the mainboard and UI firmware of an EP3243 over SWD with off-the-shelf parts on a Mac. It does not change the ESPHome component.
+
 This project integrates a Philips Series 2200/3200 Coffee Machine into into [Home Assistant](https://home-assistant.io) through [ESPHome](https://esphome.io).
 This component has been developed on a Philips `EP2220` and an ESP8266 but it will happily run on an ESP32.
 Currently supported Coffee Machine models include:

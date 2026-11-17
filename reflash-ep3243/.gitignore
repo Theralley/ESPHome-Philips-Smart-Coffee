@@ -1,0 +1,8 @@
+# Public fork: never commit Philips documents, forum copies, firmware or dumps.
+local/
+*.bin
+*.hex
+*.elf
+*.srec
+*.uf2
+*.zip
