@@ -1,5 +1,23 @@
 # Decisions
 
+## 2026-11-17, night: no small tools, as much as possible in software
+
+- **The owner has no fine tools.** So everything goes through what is on the board already:
+  connectors with exposed pins, or large solder joints. Software does the rest.
+- **Power board: the white 5-pin header** is the way in. Its pins are exposed, and jumper wires
+  push on. **JP19 is dropped**: the photos show surface-mount pads that need fine soldering.
+  TP11 to TP14 are large solder domes, and an ordinary soldering iron is enough for them.
+- **The SWD pins are found without probing the MCU's legs**: first the forum's `pinout.jpg`,
+  then a **blueTag** scan on the Pico (MIT, no account) through 1 kΩ series resistors. A
+  multimeter is optional.
+- **Power can come from the Pico's own `3V3(OUT)`** instead of a bench supply. The fallback is a
+  bench supply, if the Pico drops off USB when the board is connected.
+- **The UI board is touched only if it offers a connector.** If it has only small pads, it keeps
+  its software: it is the newly replaced board. The power board then gets either its own dump
+  written back, which is a full flash rewrite at the same version, or a main image that fits the
+  UI's version. A downgraded main next to a newer UI is avoided.
+- `dump.sh` now checks that a CMSIS-DAP probe is on USB before reading.
+
 ## 2026-11-17, late: replace all software first, an older version is fine
 
 - **The owner accepts a lower firmware version.** The fault survives every part swap, so only

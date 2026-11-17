@@ -13,6 +13,12 @@ case "$board" in
   *)    echo "usage: $0 main|ui" >&2; exit 2 ;;
 esac
 
+if ! system_profiler SPUSBDataType 2>/dev/null | grep -qi cmsis-dap; then
+  echo "No CMSIS-DAP probe on USB. Is the Pico plugged in and running debugprobe" >&2
+  echo "(not blueTag's menu)? See 'Turning the Pico W into a probe' in the README." >&2
+  exit 1
+fi
+
 out=../local/dumps
 mkdir -p "$out"
 stamp=$(date +%Y%m%d-%H%M%S)

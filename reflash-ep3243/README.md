@@ -11,8 +11,8 @@ It is a separate project inside that fork. The ESPHome component itself is uncha
 | Research: chips, programming route, Mac tools | Done (2026-11-17) |
 | OpenOCD configs and a read-only dump script | Written; OpenOCD 0.12.0 parses them; not yet run on hardware |
 | Photos and close-ups of the power board (labels, MCU, test points) | Done; see [Our boards](#our-boards) |
-| Find the SWD pins on the power board with a continuity tester | To do |
-| Close-ups of the UI board (label, MCU sticker) | To do |
+| Find the SWD pins on the power board without fine probing: the forum's pinout photo, or a blueTag scan on the Pico | To do |
+| Close-ups of the UI board (label, MCU sticker, any connector) | To do |
 | Raspberry Pi Pico W flashed with `debugprobe` and checked on the Mac | To do |
 | Firmware check tools (`tools/fw_info.py`, `tools/crc_check.py`) | Written; tested on synthetic images |
 | Forum account, download the firmware files | To do |
@@ -114,29 +114,35 @@ Our reading, not yet verified:
 | Part | Where | Meaning |
 |---|---|---|
 | U3, 44-pin QFP under the sticker | Centre | The MCU. The pin count fits the MKE02Z64VLD4 (44-LQFP); OpenOCD reads the chip ID on connect |
-| TP11 `+5V`, TP14 `GND` | Top left | Power for programming (3.3 V from the bench supply) |
-| TP13 `U_TX`, TP12 `U_RX` | Top left, next to TP14 | A UART, probably the line to the UI board (it sits by the UI connector and U2) |
-| **JP19**, 2 × 5 rectangular pads, unpopulated | Below left of U3 | **Candidate SWD port.** The layout matches the ARM 10-pin Cortex debug footprint |
-| White 5-pin header, no cable | Left of R69 and R68 | **Candidate for the "white connector"** that the service manual reserves for the Philips programmer. It may carry SWD or a UART |
+| TP11 `+5V`, TP14 `GND` | Top left | Power for programming (3.3 V). **Large solder domes**: an ordinary soldering iron is enough to attach a wire |
+| TP13 `U_TX`, TP12 `U_RX` | Top left, next to TP14 | A UART, probably the line to the UI board (it sits by the UI connector and U2). Also large domes |
+| **JP19**, 2 × 5 rectangular pads, unpopulated | Below left of U3 | Possible debug footprint, but **surface-mount pads that need fine soldering. Not used** |
+| **White 5-pin header, no cable** | Left of R69 and R68 | **First choice.** Probably the "white connector" that the service manual reserves for the Philips programmer. **Its pins are exposed, so jumper wires push straight on**, with no soldering. It may carry SWD or a UART |
 | JP9, red Picoflex socket | Top | The 8-wire UI ribbon cable |
 | U2, small 8-pin IC | Next to JP9 | Fits the forum's NL27WZ17 RX/TX buffer |
 | Q9, SOT-23 | Next to DL3 | Fits the forum's FDN304 P-MOSFET for the sensor supply |
 | Glass fuse `T1A L 250V` | Bottom left | The 1 A slow fuse the forum mentions |
 | Mains terminals N, ⏚, L (JP4, JP3) | Bottom | Mains input. **Plug out!** |
 
-**Finding the SWD pins (machine unplugged, multimeter in continuity mode)**
+**Finding the SWD pins without small tools**
 
-According to the NXP KE02 data sheet, on the 44-LQFP package **pin 42 = PTC4 = SWD_CLK** and
-**pin 44 = PTA4 = SWD_DIO**. Both sit at the pin 1 corner: pin 1 is marked with a dot, pins are
-numbered anticlockwise, so 44 is next to pin 1. Also find **RESET_b (PTA5)** in the data sheet's
-44-LQFP table.
+We have no fine probes or fine soldering tools, so the route uses what is on the board already:
+the white header's exposed pins and the large test-point domes. The pins are found by software,
+not by probing the MCU's legs. In order:
 
-1. Check which JP19 pads and which pins of the white 5-pin header connect to U3 pins 42 and 44,
-   to RESET_b, to TP11 (+5V) and to TP14 (GND).
-2. If the white header carries all five, a matching 5-pin plug or jumper wires are enough and
-   nothing needs soldering. Otherwise solder five thin wires to JP19.
-3. The forum's pinout photos (`pinout.jpg`, `disp-swd-pinout.jpg`) can be checked against this
-   once the forum account exists.
+1. **The forum's pinout photo.** Thread 65595 has `pinout.jpg` (power board) and
+   `disp-swd-pinout.jpg` (UI board), visible once you are logged in. If `pinout.jpg` labels the
+   white header, nothing needs measuring.
+2. **A blueTag scan.** [blueTag](https://github.com/Aodrulez/blueTag) (MIT licence, no account)
+   turns the Pico into a JTAGulator-style pin finder. It tries every pair of the wired pins as
+   SWDIO and SWCLK and reports the pair where an ARM chip answers, together with its ID. Wire
+   each header pin to GP0, GP1, GP2 and so on **through a 1 kΩ resistor on a breadboard**.
+   blueTag drives the pins as outputs, so a header pin that turns out to be GND or +5V would
+   otherwise be shorted against a Pico pin. With 1 kΩ the current stays at about 3 mA. See
+   [Finding the pins with blueTag](#finding-the-pins-with-bluetag).
+3. **A multimeter**, only if one is to hand. Test the white header's pins against TP14 (GND) and
+   TP11 (+5V). The MCU's own legs (pin 42 = `SWD_CLK`, pin 44 = `SWD_DIO` on the 44-LQFP, per the
+   NXP data sheet) are 0.8 mm apart and need fine probes, so we skip them.
 
 ### UI board
 
@@ -146,12 +152,16 @@ PSoC are still to be photographed. They show whether its firmware matches the po
 
 ## Hardware (all off the shelf)
 
+No fine tools are needed: no fine soldering iron, tweezers, fine probes or pogo-pin clips.
+
 | Item | Why |
 |---|---|
-| **Raspberry Pi Pico W (RP2040), which we have** | SWD probe (CMSIS-DAP) with Raspberry Pi's `debugprobe` firmware, works with OpenOCD on macOS |
-| Bench power supply with current limit | 3.3 V to the board being programmed |
-| Thin wire and a soldering iron, or a pogo-pin clip | Five wires to the SWD header on each board |
-| Multimeter | Continuity checks to identify the SWD pins; check the 5 V rail for shorts |
+| **Raspberry Pi Pico W (RP2040), which we have** | SWD probe (CMSIS-DAP) with Raspberry Pi's `debugprobe` firmware, and the pin finder with blueTag. It needs pin headers; if ours has none, a Pico H or WH (headers fitted) is the no-soldering option |
+| Jumper wires ("Dupont"), female–female and male–female | From the Pico to the white header's pins, which they push onto |
+| A small breadboard and a few 1 kΩ resistors | Protection during the blueTag scan only |
+| An ordinary soldering iron, only if needed | Two wires onto the large TP11 and TP14 domes, if the white header carries no power |
+| Power: the Pico's own `3V3(OUT)` pin, or a bench supply set to 3.3 V | Powers the board while it is programmed. See [Step 3](#step-3-wire-up) |
+| Multimeter (optional) | Confirms GND and +5V on the white header |
 | Torx T10 | Back panel |
 
 Alternative probe: a SEGGER J-Link EDU Mini, which forum members have used on exactly these
@@ -187,6 +197,33 @@ Pico wiring, from `include/board_pico_config.h` in debugprobe: **GP2 = SWCLK, GP
 GP1 = RESET**, plus GND. Leave the Pico's 3V3 and VSYS unconnected when a bench supply powers
 the target.
 
+`openocd/dump.sh` checks that a CMSIS-DAP probe is on USB before it reads anything.
+
+### Finding the pins with blueTag
+
+Only needed if the forum's pinout photo does not settle it. Mains plug out, UI ribbon unplugged.
+
+1. Download `blueTag-v2.1.2.uf2` from
+   [Aodrulez/blueTag releases](https://github.com/Aodrulez/blueTag/releases) and copy it to the
+   Pico the same way as debugprobe (hold BOOTSEL, plug in, copy). It is built for the plain Pico.
+   On the Pico W the LED stays dark, as with debugprobe. Whether it runs on the Pico W is **not
+   yet verified**.
+2. Wire it with the board unpowered: Pico GND to TP14, and the five white-header pins to
+   **GP0 to GP4**, each through a 1 kΩ resistor on the breadboard.
+3. Power the board (see [Step 3](#step-3-wire-up)). Open the Pico's serial port in the Mac's
+   own Terminal: `ls /dev/cu.usbmodem*`, then `screen /dev/cu.usbmodem<…> 115200`. Press a key to
+   bring up the menu.
+4. Press **`s`** (SWD pinout scan) and enter **5** channels. blueTag reports `SWDIO=CHx` and
+   `SWCLK=CHy`. CH0 is GP0, CH1 is GP1, and so on. It also shows the chip's ID: a Cortex-M0+
+   answers with DPIDR `0x0BC11477`.
+5. If nothing is found, press `p` to turn off pin pulsing and scan again, as blueTag suggests.
+6. Quit `screen` with Ctrl-A, then K. Write the result down in `local/STATE.md`. Then put
+   `debugprobe_on_pico.uf2` back on the Pico and move the two wires to GP2 (SWCLK) and GP3
+   (SWDIO). Keep the resistors or take them out; SWD runs at 400 kHz and works through 1 kΩ.
+
+The two pins that blueTag did not pick are probably GND/+5V or RESET. Before connecting
+anything to them, check them against the forum photo or with a multimeter.
+
 ## Plan
 
 ### Step 0: two free resets (service manual pp. 30 and 40)
@@ -217,19 +254,34 @@ mainboard.
 2. Take close-ups (see the table above). Write down the **MAIN** and **UI** 12NC labels (for
    example `MAIN 421945020851`, `UI 421945020831`), the chip markings and the machine's 12NC and
    serial number.
-3. Find the SWD pins on each board. For the power board, see
-   [Finding the SWD pins](#our-boards): JP19 or the white 5-pin header. Confirm each pin with the
-   continuity tester: GND, +5V, and the MCU's SWD data, SWD clock and reset pins.
-   - KE02 (44-LQFP): `SWD_CLK` = pin 42 (PTC4), `SWD_DIO` = pin 44 (PTA4). Look up `RESET_b`
-     (PTA5) in the data sheet's 44-LQFP table.
-   - PSoC 4000S: `SWDIO` = P3.2, `SWDCLK` = P3.3, and `XRES`. This is the usual PSoC 4
-     assignment; confirm it in the CY8C4025 data sheet's pin table.
+3. Find the SWD pins on each board without probing the chips: see
+   [Finding the SWD pins without small tools](#our-boards). For the power board that means the
+   white 5-pin header. For the UI board it depends on its close-ups and the forum's
+   `disp-swd-pinout.jpg`. If the UI board offers only small pads, it is left alone; see
+   [Step 6](#step-6-choose-the-new-software).
+   - For reference, KE02 (44-LQFP): `SWD_CLK` = pin 42 (PTC4), `SWD_DIO` = pin 44 (PTA4).
+   - PSoC 4000S: `SWDIO` = P3.2, `SWDCLK` = P3.3, and `XRES` (the usual PSoC 4 assignment).
 
 ### Step 3: wire up
 
-Mains plug out. Unplug the UI ribbon cable from JP9. Connect the bench supply (3.3 V, 50 mA)
-to the `+5V` and `GND` test points of the board you are working on (power board: TP11 and TP14). Pico GP2 goes to SWCLK, GP3
-to SWDIO, GP1 to RESET (XRES on the UI board) and GND to GND.
+Mains plug out. Unplug the UI ribbon cable from JP9. Wire **everything before any power is
+on**: Pico GP2 to SWCLK, GP3 to SWDIO, GP1 to RESET (XRES on the UI board), and GND to GND.
+
+Power the board at **3.3 V, never 5 V**. The Pico's pins are 3.3 V only, and a board running at
+5 V would push 5 V into them. Feed the `+5V` rail (power board: TP11 or the white header's
+supply pin, if it has one) and GND (TP14 or the header's GND). Two ways:
+
+- **The Pico's own `3V3(OUT)` (pin 36) and `GND` (pin 38).** This needs no extra equipment. The
+  board then starts together with the Pico when the USB cable goes into the Mac. The Pico can
+  supply about 300 mA. At 3.3 V the board's relays, pump and heaters stay off and the logic draws
+  far less. If the Pico drops off USB or restarts as soon as the board is connected, the board
+  draws too much: unplug it and use a bench supply instead.
+- **A bench supply set to 3.3 V with a 50 mA limit**, if one is available. Leave the Pico's 3V3
+  unconnected in that case.
+
+On the power board, if the white header has no supply pin, a wire goes onto the TP11 and TP14
+domes. They are large enough for an ordinary soldering iron, and a short tinned wire end soldered
+on holds better than a wire pressed against the dome while the chip is being written.
 
 ### Step 4: dump (read-only, always first)
 
@@ -287,6 +339,14 @@ older firmware version is acceptable.
      (`421941311861` revisions `.03` and `.04` are compatible, according to the same repairer).
 2. **Check the UI image against our UI board's label** (still to be photographed). If the set has
    no UI image that fits, ask in the thread.
+   **If the UI board can only be reached through small pads** (no fine tools here), the UI keeps
+   its software. It is the newly replaced board, so it is the less likely culprit. The power
+   board then gets one of two things:
+   - **its own dump written back**, after a full erase. This replaces every byte of flash with
+     a fresh copy, keeps the version the UI expects, and together with Steam-Out resets
+     everything that software can reset; or
+   - **a different main image, but only one that fits the UI's version.** Mixing a downgraded
+     main with a newer UI risks the known mismatch faults.
 3. **Inspect every file before it is flashed:**
 
    ```sh
@@ -317,6 +377,14 @@ openocd -f ui-psoc4.cfg  -c "program ../local/firmware/ui.bin 0x0 verify reset e
 
 `verify` reads the flash back and compares it with the file. Afterwards, dump the board again
 with `dump.sh` and compare with `fw_info.py --compare` to make sure it holds the new image.
+
+To write the power board's own dump back (step 6, when the UI board is left alone), use the
+dump instead. It covers all 64 KB, so `program` erases and rewrites the whole flash:
+
+```sh
+python3 -I ../tools/fw_info.py --chip ke02 ../local/dumps/main-<stamp>-1.bin
+openocd -f main-ke02.cfg -c "program ../local/dumps/main-<stamp>-1.bin 0x0 verify reset exit"
+```
 
 About the KE02's security byte (`0x40E`, reference manual table 18-6): if it is set to "secured",
 the chip still runs, but the debug port can no longer read or write it. The only way back is a
@@ -357,8 +425,12 @@ to compare the old and new board's software.
 
 ## Open questions
 
-- Which of JP19 and the white 5-pin header carries SWD. Answered by the continuity test.
-- What the UI board's label and version say, and whether they match `V01.05.02`.
+- Which pins of the white 5-pin header carry SWD, and whether it also carries GND and +5V.
+  Answered by the forum's `pinout.jpg` or a blueTag scan.
+- What the UI board's label and version say, whether they match `V01.05.02`, and whether the UI
+  board has a connector or only small pads for SWD.
+- Whether blueTag and debugprobe run on our Pico W, and whether the Pico's `3V3(OUT)` can power
+  the board.
 - Whether `CD2734BF` is a CRC of the firmware.
-- Where the machine parameters live. `flash read_bank` does not read the KE02's 256-byte
-  EEPROM. Steam-Out resets the parameters either way.
+- The machine parameters live in the KE02's 256-byte EEPROM at `0x10000000`. `dump.sh` saves a
+  copy, but OpenOCD cannot write it back. Steam-Out resets the parameters either way.

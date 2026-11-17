@@ -7,8 +7,10 @@ replacing the UI board did not help, so this fork works out how to **read and re
 firmware of both boards ourselves**. The power board carries an NXP Kinetis KE02 and the UI board
 a Cypress PSoC 4000S, and both have SWD.
 
-**How:** a Raspberry Pi Pico W running Raspberry Pi's `debugprobe` firmware as the SWD probe,
-OpenOCD on a Mac, and a 3.3 V bench supply. The machine's mains plug stays out the whole time.
+**How:** a Raspberry Pi Pico W running Raspberry Pi's `debugprobe` firmware as the SWD probe
+(and `blueTag` to find the pins), OpenOCD on a Mac, and 3.3 V from the Pico or a bench supply.
+No fine tools: jumper wires go onto the board's existing connector, and the SWD pins are found
+in software instead of by probing the chip. The machine's mains plug stays out the whole time.
 
 **Rules we keep:** off-the-shelf parts only, everything on a Mac, and no licence or vendor
 accounts. So no Philips Serkit programmer and no Philips EPSC service software. A forum account
@@ -17,9 +19,9 @@ is fine.
 **Status (2026-11-17):** research done, scripts written but not yet run on hardware. The power
 board is identified: `421945017971` with firmware `V01.05.02`, and test points for power and
 UART. **Plan: the fault survived every part swap, so we replace all software on both boards,
-even with an older version, before replacing the power board.** Next: find the SWD pins with a
-continuity tester, photograph the UI board, set up the Pico W, back up both boards, then flash a
-matched pair.
+even with an older version, before replacing the power board.** Next: get the forum's pinout
+photo, or let blueTag on the Pico find the SWD pins on the power board's white 5-pin header.
+Then photograph the UI board, set up the Pico W, back up both boards, and flash.
 
 Everything is in [`reflash-ep3243/`](reflash-ep3243/): the [guide and status](reflash-ep3243/README.md),
 [decisions](reflash-ep3243/DECISIONS.md), [sources](reflash-ep3243/SOURCES.md) and
